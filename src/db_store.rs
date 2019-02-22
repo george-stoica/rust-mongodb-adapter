@@ -1,6 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use chrono::prelude::*;
 use mongo_driver::client::{ClientPool, Uri};
 use mongo_driver::CommandAndFindOptions;
 use mongo_driver::flags;
@@ -19,7 +20,7 @@ pub trait DataStore<T> {
 pub struct ConnectionOptions {
     pub uri: String,
     pub username: String,
-    pub password: String
+    pub password: String,
 }
 
 pub struct MongoDataStore {
@@ -28,12 +29,21 @@ pub struct MongoDataStore {
 }
 
 pub struct WorkOrder {
-    order_id: String
+    order_id: String,
+    size: String,
+    filled: String,
+    status: String,
+    ticker: String,
+    mic: String,
+    action: String,
+    lastModified: DateTime<Utc>,
 }
 
 impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[order_id: {}]", self.order_id)
+        write!(f, "[order_id: {}, size: {}, filled: {}, status: {}, ticker: {}, mic: {}, action: {}, lastModified: {}]",
+               self.order_id, self.size, self.filled, self.status, self.ticker, self.mic, self.action,
+               self.lastModified)
     }
 }
 
@@ -73,7 +83,16 @@ impl DataStore<WorkOrder> for MongoDataStore {
             skip: 0,
             limit: 10,
             batch_size: 0,
-            fields: None,
+            fields: Some(doc! {
+                                "orderId"   => true,
+                                "size"      => true,
+                                "filled"    => true,
+                                "status"    => true,
+                                "ticker"    => true,
+                                "mic"       => true,
+                                "action"    => true,
+                                "lastModified" => true
+                                }), // projection fields
             read_prefs: None,
         };
 
@@ -89,7 +108,16 @@ impl DataStore<WorkOrder> for MongoDataStore {
                             Err(_) => &""
                         };
 
-                        Some(WorkOrder { order_id: String::from(id) })
+                        Some(WorkOrder {
+                            order_id: get_field_as_str("orderId", &doc),
+                            size: get_field_as_str("size", &doc),
+                            filled: get_field_as_str("filled", &doc),
+                            status: get_field_as_str("status", &doc),
+                            ticker: get_field_as_str("ticker", &doc),
+                            mic: get_field_as_str("mic", &doc),
+                            action: get_field_as_str("action", &doc),
+                            lastModified: get_field_as_datetime("lastModified", &doc),
+                        })
                     }
                     Err(err) => {
                         println!("Error retrieving Mongo document: {:?}", err);
@@ -99,4 +127,26 @@ impl DataStore<WorkOrder> for MongoDataStore {
             })
             .collect::<Vec<Option<WorkOrder>>>()
     }
+}
+
+/*
+* Helper functions: Converters
+*/
+
+fn get_field_as_str(field_name: &str, document: &bson::Document) -> String {
+    let id = match document.get_str(field_name) {
+        Ok(val) => val,
+        Err(_) => &""
+    };
+
+    String::from(id)
+}
+
+fn get_field_as_datetime(field_name: &str, document: &bson::Document) -> DateTime<Utc> {
+    let datetime = match document.get_utc_datetime(field_name) {
+        Ok(val) => val.clone(),
+        Err(_) => Utc::now() // fixme. not that great
+    };
+
+    datetime
 }

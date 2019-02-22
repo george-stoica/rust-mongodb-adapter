@@ -233,6 +233,7 @@ name = "rust-mongodb-adapter"
 version = "0.1.0"
 dependencies = [
  "bson 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mongo_driver 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

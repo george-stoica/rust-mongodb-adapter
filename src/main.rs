@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate bson;
 extern crate mongo_driver;
+extern crate chrono;
 
 use crate::db_store::DataStore;
 use std::env;
