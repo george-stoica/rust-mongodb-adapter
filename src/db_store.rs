@@ -79,7 +79,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
 
         let cursor = work_orders_collection.find(&query, Some(&search_options)).unwrap();
 
-        let orders = cursor.into_iter()
+        cursor.into_iter()
             .map(|document| {
                 match document {
                     Ok(doc) => {
@@ -89,7 +89,6 @@ impl DataStore<WorkOrder> for MongoDataStore {
                             Err(_) => &""
                         };
 
-//                        println!("Got doc {} with ID: {}", doc, id);
                         Some(WorkOrder { order_id: String::from(id) })
                     }
                     Err(err) => {
@@ -98,9 +97,6 @@ impl DataStore<WorkOrder> for MongoDataStore {
                     }
                 }
             })
-            .collect::<Vec<Option<WorkOrder>>>();
-
-        // return line. todo can return with previous expression
-        orders
+            .collect::<Vec<Option<WorkOrder>>>()
     }
 }
