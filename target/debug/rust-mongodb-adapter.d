@@ -1,1 +1,0 @@
-/home/george/dev/finfabrik/github/rust-mongodb-adapter/target/debug/rust-mongodb-adapter: /home/george/dev/finfabrik/github/rust-mongodb-adapter/src/db_store.rs /home/george/dev/finfabrik/github/rust-mongodb-adapter/src/main.rs
