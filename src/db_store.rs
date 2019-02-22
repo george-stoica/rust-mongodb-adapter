@@ -12,8 +12,14 @@ trait StoredData {}
 
 pub trait DataStore<T> {
     fn new() -> Self;
-    fn initialize(&mut self) -> bool;
+    fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool;
     fn get_work_orders(&mut self) -> Vec<Option<T>>;
+}
+
+pub struct ConnectionOptions {
+    pub uri: String,
+    pub username: String,
+    pub password: String
 }
 
 pub struct MongoDataStore {
@@ -36,8 +42,13 @@ impl DataStore<WorkOrder> for MongoDataStore {
         MongoDataStore { initialized: false, client_pool: None }
     }
 
-    fn initialize(&mut self) -> bool {
-        let uri = Uri::new("mongodb://172.43.0.1:27017").unwrap();
+    fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool {
+        if options.is_none() {
+            panic!("Missing database connection options!")
+        }
+
+        let connection_options = options.unwrap();
+        let uri = Uri::new(connection_options.uri).unwrap();
         let pool = Arc::new(ClientPool::new(uri.clone(), None));
 
         self.client_pool = Some(pool);
