@@ -102,12 +102,6 @@ impl DataStore<WorkOrder> for MongoDataStore {
             .map(|document| {
                 match document {
                     Ok(doc) => {
-                        // guard for missing fields
-                        let id = match doc.get_str("orderId") {
-                            Ok(val) => val,
-                            Err(_) => &""
-                        };
-
                         Some(WorkOrder {
                             order_id: get_field_as_str("orderId", &doc),
                             size: get_field_as_str("size", &doc),
