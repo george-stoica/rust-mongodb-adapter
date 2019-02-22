@@ -1,0 +1,1 @@
+/home/george/dev/finfabrik/github/rust-mongodb-adapter/target/debug/librust_mongodb_adapter-0f2d528de5fd4e48.rmeta: /home/george/dev/finfabrik/github/rust-mongodb-adapter/src/db_store.rs /home/george/dev/finfabrik/github/rust-mongodb-adapter/src/main.rs
