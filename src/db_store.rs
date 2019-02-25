@@ -8,13 +8,15 @@ use mongo_driver::flags;
 use mongo_driver::Result;
 
 use crate::bson;
+use bson::Document;
 
 trait StoredData {}
 
 pub trait DataStore<T> {
     fn new() -> Self;
     fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool;
-    fn get_work_orders(&mut self) -> Vec<Option<T>>;
+    fn get_data(&mut self) -> Vec<Option<T>>;
+    fn create_new(&self, data: &T) -> Option<T>;
 }
 
 pub struct ConnectionOptions {
@@ -29,21 +31,22 @@ pub struct MongoDataStore {
 }
 
 pub struct WorkOrder {
-    order_id: String,
-    size: String,
-    filled: String,
-    status: String,
-    ticker: String,
-    mic: String,
-    action: String,
-    lastModified: DateTime<Utc>,
+    pub order_id: String,
+    pub size: String,
+    pub filled: String,
+    pub status: String,
+    pub ticker: String,
+    pub mic: String,
+    pub action: String,
+    pub timestamp: DateTime<Utc>,
+    pub lastModified: DateTime<Utc>,
 }
 
 impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[order_id: {}, size: {}, filled: {}, status: {}, ticker: {}, mic: {}, action: {}, lastModified: {}]",
+        write!(f, "[order_id: {}, size: {}, filled: {}, status: {}, ticker: {}, mic: {}, action: {}, timestamp: {}, lastModified: {}]",
                self.order_id, self.size, self.filled, self.status, self.ticker, self.mic, self.action,
-               self.lastModified)
+               self.timestamp, self.lastModified)
     }
 }
 
@@ -67,7 +70,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
         true
     }
 
-    fn get_work_orders(&mut self) -> Vec<Option<WorkOrder>> {
+    fn get_data(&mut self) -> Vec<Option<WorkOrder>> {
         if !self.initialized {
             panic!("DB connection hasn't been initialized!")
         }
@@ -110,6 +113,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
                             ticker: get_field_as_str("ticker", &doc),
                             mic: get_field_as_str("mic", &doc),
                             action: get_field_as_str("action", &doc),
+                            timestamp: get_field_as_datetime("timestamp", &doc),
                             lastModified: get_field_as_datetime("lastModified", &doc),
                         })
                     }
@@ -121,11 +125,67 @@ impl DataStore<WorkOrder> for MongoDataStore {
             })
             .collect::<Vec<Option<WorkOrder>>>()
     }
+
+    fn create_new(&self, data: &WorkOrder) -> Option<WorkOrder> {
+        if !self.initialized {
+            panic!("DB connection hasn't been initialized!")
+        }
+
+        let client_pool = self.client_pool.clone().unwrap();
+        let client = client_pool.pop();
+
+        let work_orders_collection = client.get_collection("finfabrik", "workOrder");
+
+        // map from data param
+        let doc_to_insert = map_to_mongo_doc(data);
+
+        println!("Inserting new document...");
+        let insert_result = work_orders_collection.insert(&doc_to_insert,  None);
+
+        return match insert_result {
+            Ok(result) => {
+                println!("Inserted document successully");
+                Some(map_to_external_model(&doc_to_insert))
+            },
+            Err(err) => {
+                println!("Error inserting WorkOrder: {}. Error: {}", data, err);
+                None
+            }
+        }
+    }
 }
 
 /*
 * Helper functions: Converters
 */
+
+fn map_to_mongo_doc(data: &WorkOrder) -> bson::Document {
+    doc! {
+        "orderId" => data.order_id.clone(),
+        "size" => data.size.clone(),
+        "filled" => data.filled.clone(),
+        "status" => data.status.clone(),
+        "ticker"  => data.ticker.clone(),
+        "mic" => data.mic.clone(),
+        "action" => data.action.clone(),
+        "timestamp" => data.timestamp.clone(),
+        "lastModified" => data.lastModified.clone()
+    }
+}
+
+fn map_to_external_model(mongo_doc: &Document) -> WorkOrder {
+    WorkOrder {
+        order_id: "".to_string(),
+        size: "".to_string(),
+        filled: "".to_string(),
+        status: "".to_string(),
+        ticker: "".to_string(),
+        mic: "".to_string(),
+        action: "".to_string(),
+        timestamp: get_field_as_datetime("timestamp", mongo_doc),
+        lastModified: get_field_as_datetime("lastModified", mongo_doc)
+    }
+}
 
 fn get_field_as_str(field_name: &str, document: &bson::Document) -> String {
     let id = match document.get_str(field_name) {

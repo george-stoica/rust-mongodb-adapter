@@ -6,6 +6,8 @@ extern crate chrono;
 use crate::db_store::DataStore;
 use std::env;
 use std::process;
+use crate::db_store::WorkOrder;
+use chrono::prelude::*;
 
 mod db_store;
 
@@ -32,8 +34,25 @@ fn main() {
 
     println!("Connected to MongoDb.");
 
+    println!("Creating test order...");
+    let insertion = data_store.create_new(&WorkOrder {
+        order_id: String::from("665599"),
+        size: String::from("1"),
+        filled: String::from("0"),
+        status: String::from("Accepted"),
+        ticker: String::from("BTCUSD"),
+        mic: String::from("LIQD"),
+        action: "BUY".to_string(),
+        timestamp: Utc::now(),
+        lastModified: Utc::now()
+    });
+
+    if insertion.is_none() {
+        println!("Could not insert  new order!")
+    }
+
     println!("Getting orders...");
-    let orders = data_store.get_work_orders();
+    let orders = data_store.get_data();
 
     println!("Orders Len: {}", orders.len());
 
