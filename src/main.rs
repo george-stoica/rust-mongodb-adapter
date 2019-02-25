@@ -31,13 +31,6 @@ fn main() {
         username: username.clone(),
         password: password.clone()
     }));
-//    let mut data_store: db_store::MongoDataStore = db_store::DataStore::new();
-
-//    data_store.initialize(Some(db_store::ConnectionOptions {
-//        uri: uri.clone(),
-//        username: username.clone(),
-//        password: password.clone()
-//    }));
 
     println!("Connected to MongoDb.");
 
@@ -82,5 +75,8 @@ fn main() {
     println!("Orders Len: {}", orders.len());
 
     orders.into_iter()
-        .for_each(|order| println!("Order data: {}", order.unwrap()))
+        .for_each(|order| println!("Order data: {}", order.unwrap()));
+
+    println!("Deleting order with id: 665599");
+    data_store.delete("665599".to_string());
 }

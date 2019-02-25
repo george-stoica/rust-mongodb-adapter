@@ -18,6 +18,7 @@ pub trait DataStore<T> {
     fn get_data_by_id(&self, id: String) -> Option<T>;
     fn create_new(&self, data: &T) -> Option<T>;
     fn update(&self, data: &T) -> Option<T>;
+    fn delete(&self, id: String) -> bool;
 }
 
 pub struct ConnectionOptions {
@@ -204,6 +205,27 @@ impl DataStore<WorkOrder> for MongoDataStore {
             }
         }
 
+    }
+
+    fn delete(&self, id: String) -> bool {
+        let client_pool = &self.client_pool;
+        let client = client_pool.pop();
+
+        let work_orders_collection = client.get_collection("finfabrik", "workOrder");
+
+        let filter = doc! {
+            "orderId" => id.clone()
+        };
+
+        let delete_result = work_orders_collection.remove(&filter, None);
+
+        match delete_result {
+            Ok(_) => true,
+            Err(err) => {
+                println!("Error deleting document with ID: {}", id.clone());
+                false
+            }
+        }
     }
 }
 
