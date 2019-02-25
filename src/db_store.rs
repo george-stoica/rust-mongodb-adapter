@@ -1,16 +1,13 @@
 use std::fmt;
 use std::sync::Arc;
 
+use bson::Document;
 use chrono::prelude::*;
 use mongo_driver::client::{ClientPool, Uri};
 use mongo_driver::CommandAndFindOptions;
 use mongo_driver::flags;
-use mongo_driver::Result;
 
 use crate::bson;
-use bson::Document;
-
-trait StoredData {}
 
 pub trait DataStore<T> {
     fn new(options: Option<ConnectionOptions>) -> Self;
@@ -41,14 +38,15 @@ pub struct WorkOrder {
     pub mic: String,
     pub action: String,
     pub timestamp: DateTime<Utc>,
-    pub lastModified: DateTime<Utc>,
+    pub last_modified: DateTime<Utc>,
 }
 
 impl fmt::Display for WorkOrder {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[order_id: {}, size: {}, filled: {}, status: {}, ticker: {}, mic: {}, action: {}, timestamp: {}, lastModified: {}]",
+        write!(f, "[order_id: {}, size: {}, filled: {}, status: {}, ticker: {}, mic: {}, action: {}, \
+        timestamp: {}, last_modified: {}]",
                self.order_id, self.size, self.filled, self.status, self.ticker, self.mic, self.action,
-               self.timestamp, self.lastModified)
+               self.timestamp, self.last_modified)
     }
 }
 
@@ -71,7 +69,13 @@ impl DataStore<WorkOrder> for MongoDataStore {
 
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");
 
-        let query = doc! {};
+        let query = doc! {
+            "$query" => {},
+            "$sort"  => {
+                "timestamp" => -1
+            }
+        };
+
         let search_options = CommandAndFindOptions {
             query_flags: flags::Flags::new(),
             skip: 0,
@@ -96,7 +100,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
                             mic: get_field_as_str("mic", &doc),
                             action: get_field_as_str("action", &doc),
                             timestamp: get_field_as_datetime("timestamp", &doc),
-                            lastModified: get_field_as_datetime("lastModified", &doc),
+                            last_modified: get_field_as_datetime("last_modified", &doc),
                         })
                     }
                     Err(err) => {
@@ -156,18 +160,18 @@ impl DataStore<WorkOrder> for MongoDataStore {
         let doc_to_insert = map_to_mongo_doc(data);
 
         println!("Inserting new document...");
-        let insert_result = work_orders_collection.insert(&doc_to_insert,  None);
+        let insert_result = work_orders_collection.insert(&doc_to_insert, None);
 
         return match insert_result {
             Ok(result) => {
                 println!("Inserted document successully");
                 Some(map_to_external_model(&doc_to_insert))
-            },
+            }
             Err(err) => {
                 println!("Error inserting WorkOrder: {}. Error: {}", data, err);
                 None
             }
-        }
+        };
     }
 
     /*
@@ -184,10 +188,10 @@ impl DataStore<WorkOrder> for MongoDataStore {
         };
 
         let update_result = work_orders_collection.update(&filter,
-                                                    &map_to_mongo_doc(data),
-                                                    None);
+                                                          &map_to_mongo_doc(data),
+                                                          None);
 
-        match  update_result {
+        match update_result {
             Ok(_) => Some(WorkOrder {
                 order_id: String::from("665599"),
                 size: String::from("5"),
@@ -197,14 +201,13 @@ impl DataStore<WorkOrder> for MongoDataStore {
                 mic: String::from("LIQD"),
                 action: "BUY".to_string(),
                 timestamp: Utc::now(),
-                lastModified: Utc::now()
+                last_modified: Utc::now(),
             }),
             Err(_) => {
                 println!("Error updating document with id: {}", data.order_id.clone());
                 None
             }
         }
-
     }
 
     fn delete(&self, id: String) -> bool {
@@ -222,7 +225,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
         match delete_result {
             Ok(_) => true,
             Err(err) => {
-                println!("Error deleting document with ID: {}", id.clone());
+                println!("Error deleting document with ID: {}. Err: {}", id.clone(), err);
                 false
             }
         }
@@ -235,6 +238,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
 
 fn build_out_doc_projection() -> Document {
     doc! {
+                                "_id"       => true,
                                 "orderId"   => true,
                                 "size"      => true,
                                 "filled"    => true,
@@ -242,7 +246,7 @@ fn build_out_doc_projection() -> Document {
                                 "ticker"    => true,
                                 "mic"       => true,
                                 "action"    => true,
-                                "lastModified" => true
+                                "last_modified" => true
                                 }
 }
 
@@ -256,7 +260,7 @@ fn map_to_mongo_doc(data: &WorkOrder) -> bson::Document {
         "mic" => data.mic.clone(),
         "action" => data.action.clone(),
         "timestamp" => data.timestamp.clone(),
-        "lastModified" => data.lastModified.clone()
+        "last_modified" => data.last_modified.clone()
     }
 }
 
@@ -270,7 +274,7 @@ fn map_to_external_model(mongo_doc: &Document) -> WorkOrder {
         mic: get_field_as_str("mic", mongo_doc),
         action: get_field_as_str("action", mongo_doc),
         timestamp: get_field_as_datetime("timestamp", mongo_doc),
-        lastModified: get_field_as_datetime("lastModified", mongo_doc),
+        last_modified: get_field_as_datetime("last_modified", mongo_doc),
     }
 }
 

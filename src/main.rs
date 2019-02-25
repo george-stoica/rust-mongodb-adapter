@@ -25,7 +25,7 @@ fn main() {
     let password = &args[3];
 
     println!("Connecting to MongoDb!");
-    let mut data_store: db_store::MongoDataStore = db_store::DataStore::new(
+    let data_store: db_store::MongoDataStore = db_store::DataStore::new(
         Some(db_store::ConnectionOptions {
         uri: uri.clone(),
         username: username.clone(),
@@ -44,7 +44,7 @@ fn main() {
         mic: String::from("LIQD"),
         action: "BUY".to_string(),
         timestamp: Utc::now(),
-        lastModified: Utc::now()
+        last_modified: Utc::now()
     });
 
     if insertion.is_none() {
@@ -66,8 +66,8 @@ fn main() {
         mic: String::from("LIQD"),
         action: "BUY".to_string(),
         timestamp: Utc::now(),
-        lastModified: Utc::now()
-    });
+        last_modified: Utc::now()
+    }).expect("Failed to update order!");
 
     println!("Getting all orders...");
     let orders = data_store.get_data();
@@ -77,6 +77,6 @@ fn main() {
     orders.into_iter()
         .for_each(|order| println!("Order data: {}", order.unwrap()));
 
-    println!("Deleting order with id: 665599");
-    data_store.delete("665599".to_string());
+    println!("Deleting order with id: {}", updated_order.order_id.to_string());
+    data_store.delete(updated_order.order_id.to_string());
 }
