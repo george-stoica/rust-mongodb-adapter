@@ -56,6 +56,19 @@ fn main() {
 
     println!("Found: {}", single_order);
 
+    println!("Updating last order size...");
+    let updated_order = data_store.update(&WorkOrder {
+        order_id: String::from("665599"),
+        size: String::from("5"),
+        filled: String::from("0"),
+        status: String::from("Accepted"),
+        ticker: String::from("BTCUSD"),
+        mic: String::from("LIQD"),
+        action: "BUY".to_string(),
+        timestamp: Utc::now(),
+        lastModified: Utc::now()
+    });
+
     println!("Getting all orders...");
     let orders = data_store.get_data();
 

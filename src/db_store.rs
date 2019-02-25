@@ -18,6 +18,7 @@ pub trait DataStore<T> {
     fn get_data(&mut self) -> Vec<Option<T>>;
     fn get_data_by_id(&self, id: String) -> Option<T>;
     fn create_new(&self, data: &T) -> Option<T>;
+    fn update(&self, data: &T) -> Option<T>;
 }
 
 pub struct ConnectionOptions {
@@ -87,16 +88,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
             skip: 0,
             limit: 10,
             batch_size: 0,
-            fields: Some(doc! {
-                                "orderId"   => true,
-                                "size"      => true,
-                                "filled"    => true,
-                                "status"    => true,
-                                "ticker"    => true,
-                                "mic"       => true,
-                                "action"    => true,
-                                "lastModified" => true
-                                }), // projection fields
+            fields: Some(build_out_doc_projection()),
             read_prefs: None,
         };
 
@@ -138,16 +130,27 @@ impl DataStore<WorkOrder> for MongoDataStore {
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");
 
         let filter = doc! {
-
+            "orderId": id.clone()
         };
 
-        let result = work_orders_collection.find(&filter, None).unwrap().next();
+        let search_options = CommandAndFindOptions {
+            query_flags: flags::Flags::new(),
+            skip: 0,
+            limit: 10,
+            batch_size: 0,
+            fields: Some(build_out_doc_projection()),
+            read_prefs: None,
+        };
+
+        let result = work_orders_collection.find(&filter, Some(&search_options))
+            .unwrap()
+            .next();
 
         match result {
             Some(mongo_result) => match mongo_result {
                 Ok(found) => Some(map_to_external_model(&found)),
                 Err(err) => {
-                    println!("Error calling find by ID for ID: {}, Err: {}", id, err);
+                    println!("Error calling find by ID for ID: {}, Err: {}", id.clone(), err);
                     None
                 }
             }
@@ -185,11 +188,65 @@ impl DataStore<WorkOrder> for MongoDataStore {
             }
         }
     }
+
+    /*
+    * TODO: implement partial updates. Currently this function updates the entire document.
+    */
+    fn update(&self, data: &WorkOrder) -> Option<WorkOrder> {
+        if !self.initialized {
+            panic!("DB connection hasn't been initialized!")
+        }
+
+        let client_pool = self.client_pool.clone().unwrap();
+        let client = client_pool.pop();
+
+        let work_orders_collection = client.get_collection("finfabrik", "workOrder");
+
+        let filter = doc! {
+            "orderId": data.order_id.clone()
+        };
+
+        let update_result = work_orders_collection.update(&filter,
+                                                    &map_to_mongo_doc(data),
+                                                    None);
+
+        match  update_result {
+            Ok(_) => Some(WorkOrder {
+                order_id: String::from("665599"),
+                size: String::from("5"),
+                filled: String::from("0"),
+                status: String::from("Accepted"),
+                ticker: String::from("BTCUSD"),
+                mic: String::from("LIQD"),
+                action: "BUY".to_string(),
+                timestamp: Utc::now(),
+                lastModified: Utc::now()
+            }),
+            Err(_) => {
+                println!("Error updating document with id: {}", data.order_id.clone());
+                None
+            }
+        }
+
+    }
 }
 
 /*
 * Helper functions: Converters
 */
+
+fn build_out_doc_projection() -> Document {
+    doc! {
+                                "orderId"   => true,
+                                "size"      => true,
+                                "filled"    => true,
+                                "status"    => true,
+                                "ticker"    => true,
+                                "mic"       => true,
+                                "action"    => true,
+                                "lastModified" => true
+                                }
+}
 
 fn map_to_mongo_doc(data: &WorkOrder) -> bson::Document {
     doc! {
