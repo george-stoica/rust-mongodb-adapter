@@ -16,6 +16,7 @@ pub trait DataStore<T> {
     fn new() -> Self;
     fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool;
     fn get_data(&mut self) -> Vec<Option<T>>;
+    fn get_data_by_id(&self, id: String) -> Option<T>;
     fn create_new(&self, data: &T) -> Option<T>;
 }
 
@@ -126,6 +127,37 @@ impl DataStore<WorkOrder> for MongoDataStore {
             .collect::<Vec<Option<WorkOrder>>>()
     }
 
+    fn get_data_by_id(&self, id: String) -> Option<WorkOrder> {
+        if !self.initialized {
+            panic!("DB connection hasn't been initialized!")
+        }
+
+        let client_pool = self.client_pool.clone().unwrap();
+        let client = client_pool.pop();
+
+        let work_orders_collection = client.get_collection("finfabrik", "workOrder");
+
+        let filter = doc! {
+
+        };
+
+        let result = work_orders_collection.find(&filter, None).unwrap().next();
+
+        match result {
+            Some(mongo_result) => match mongo_result {
+                Ok(found) => Some(map_to_external_model(&found)),
+                Err(err) => {
+                    println!("Error calling find by ID for ID: {}, Err: {}", id, err);
+                    None
+                }
+            }
+            None => {
+                println!("No orders found with ID: {}", id);
+                None
+            }
+        }
+    }
+
     fn create_new(&self, data: &WorkOrder) -> Option<WorkOrder> {
         if !self.initialized {
             panic!("DB connection hasn't been initialized!")
@@ -175,15 +207,15 @@ fn map_to_mongo_doc(data: &WorkOrder) -> bson::Document {
 
 fn map_to_external_model(mongo_doc: &Document) -> WorkOrder {
     WorkOrder {
-        order_id: "".to_string(),
-        size: "".to_string(),
-        filled: "".to_string(),
-        status: "".to_string(),
-        ticker: "".to_string(),
-        mic: "".to_string(),
-        action: "".to_string(),
+        order_id: get_field_as_str("orderId", mongo_doc),
+        size: get_field_as_str("size", mongo_doc),
+        filled: get_field_as_str("filled", mongo_doc),
+        status: get_field_as_str("status", mongo_doc),
+        ticker: get_field_as_str("ticker", mongo_doc),
+        mic: get_field_as_str("mic", mongo_doc),
+        action: get_field_as_str("action", mongo_doc),
         timestamp: get_field_as_datetime("timestamp", mongo_doc),
-        lastModified: get_field_as_datetime("lastModified", mongo_doc)
+        lastModified: get_field_as_datetime("lastModified", mongo_doc),
     }
 }
 

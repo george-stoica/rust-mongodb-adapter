@@ -51,7 +51,12 @@ fn main() {
         println!("Could not insert  new order!")
     }
 
-    println!("Getting orders...");
+    println!("Get order with id: 665599");
+    let single_order = data_store.get_data_by_id("665599".to_string()).unwrap();
+
+    println!("Found: {}", single_order);
+
+    println!("Getting all orders...");
     let orders = data_store.get_data();
 
     println!("Orders Len: {}", orders.len());
