@@ -13,9 +13,8 @@ use bson::Document;
 trait StoredData {}
 
 pub trait DataStore<T> {
-    fn new() -> Self;
-    fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool;
-    fn get_data(&mut self) -> Vec<Option<T>>;
+    fn new(options: Option<ConnectionOptions>) -> Self;
+    fn get_data(&self) -> Vec<Option<T>>;
     fn get_data_by_id(&self, id: String) -> Option<T>;
     fn create_new(&self, data: &T) -> Option<T>;
     fn update(&self, data: &T) -> Option<T>;
@@ -29,7 +28,7 @@ pub struct ConnectionOptions {
 
 pub struct MongoDataStore {
     initialized: bool,
-    client_pool: Option<Arc<ClientPool>>,
+    client_pool: Arc<ClientPool>,
 }
 
 pub struct WorkOrder {
@@ -53,11 +52,7 @@ impl fmt::Display for WorkOrder {
 }
 
 impl DataStore<WorkOrder> for MongoDataStore {
-    fn new() -> Self {
-        MongoDataStore { initialized: false, client_pool: None }
-    }
-
-    fn initialize(&mut self, options: Option<ConnectionOptions>) -> bool {
+    fn new(options: Option<ConnectionOptions>) -> Self {
         if options.is_none() {
             panic!("Missing database connection options!")
         }
@@ -66,18 +61,11 @@ impl DataStore<WorkOrder> for MongoDataStore {
         let uri = Uri::new(connection_options.uri).unwrap();
         let pool = Arc::new(ClientPool::new(uri.clone(), None));
 
-        self.client_pool = Some(pool);
-
-        self.initialized = true;
-        true
+        MongoDataStore { initialized: true, client_pool: pool }
     }
 
-    fn get_data(&mut self) -> Vec<Option<WorkOrder>> {
-        if !self.initialized {
-            panic!("DB connection hasn't been initialized!")
-        }
-
-        let client_pool = self.client_pool.clone().unwrap();
+    fn get_data(&self) -> Vec<Option<WorkOrder>> {
+        let client_pool = &self.client_pool;
         let client = client_pool.pop();
 
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");
@@ -120,11 +108,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
     }
 
     fn get_data_by_id(&self, id: String) -> Option<WorkOrder> {
-        if !self.initialized {
-            panic!("DB connection hasn't been initialized!")
-        }
-
-        let client_pool = self.client_pool.clone().unwrap();
+        let client_pool = &self.client_pool;
         let client = client_pool.pop();
 
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");
@@ -162,11 +146,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
     }
 
     fn create_new(&self, data: &WorkOrder) -> Option<WorkOrder> {
-        if !self.initialized {
-            panic!("DB connection hasn't been initialized!")
-        }
-
-        let client_pool = self.client_pool.clone().unwrap();
+        let client_pool = &self.client_pool;
         let client = client_pool.pop();
 
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");
@@ -193,11 +173,7 @@ impl DataStore<WorkOrder> for MongoDataStore {
     * TODO: implement partial updates. Currently this function updates the entire document.
     */
     fn update(&self, data: &WorkOrder) -> Option<WorkOrder> {
-        if !self.initialized {
-            panic!("DB connection hasn't been initialized!")
-        }
-
-        let client_pool = self.client_pool.clone().unwrap();
+        let client_pool = &self.client_pool;
         let client = client_pool.pop();
 
         let work_orders_collection = client.get_collection("finfabrik", "workOrder");

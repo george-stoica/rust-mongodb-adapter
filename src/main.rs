@@ -25,12 +25,19 @@ fn main() {
     let password = &args[3];
 
     println!("Connecting to MongoDb!");
-    let mut data_store: db_store::MongoDataStore = db_store::DataStore::new();
-    data_store.initialize(Some(db_store::ConnectionOptions {
+    let mut data_store: db_store::MongoDataStore = db_store::DataStore::new(
+        Some(db_store::ConnectionOptions {
         uri: uri.clone(),
         username: username.clone(),
         password: password.clone()
     }));
+//    let mut data_store: db_store::MongoDataStore = db_store::DataStore::new();
+
+//    data_store.initialize(Some(db_store::ConnectionOptions {
+//        uri: uri.clone(),
+//        username: username.clone(),
+//        password: password.clone()
+//    }));
 
     println!("Connected to MongoDb.");
 
